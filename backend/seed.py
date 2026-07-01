@@ -14,6 +14,15 @@ from . import db, auth
 DEMO_EMAIL = "demo@tradejournal.pro"
 DEMO_PASSWORD = "demo1234"
 
+# column order used for the batched trade insert (must match the dicts built
+# in _generate_trades)
+TRADE_COLS = [
+    "symbol", "instrument", "direction", "quantity", "entry_price", "exit_price",
+    "stop_price", "fees", "entry_time", "exit_time", "strategy", "setup",
+    "market_condition", "timeframe", "session", "tags", "pre_notes", "post_notes",
+    "emotion", "rating", "screenshot",
+]
+
 SYMBOLS = ["AAPL", "TSLA", "NVDA", "SPY", "AMD", "MSFT", "META", "QQQ", "COIN", "BTCUSD"]
 STRATEGIES = ["Breakout", "Pullback", "VWAP Reversion", "Trend Follow", "Gap & Go", "Mean Reversion"]
 SETUPS = ["Bull Flag", "ABCD", "Opening Range", "Double Bottom", "EMA Bounce", "Failed Breakdown"]
@@ -39,19 +48,21 @@ def run(reset=False):
             conn.execute("DELETE FROM habits WHERE user_id=?", (uid,))
         else:
             pw_hash, salt = auth.hash_password(DEMO_PASSWORD)
-            cur = conn.execute(
+            uid = conn.insert(
                 "INSERT INTO users (email, name, pw_hash, pw_salt, trader_type, experience, "
                 "account_size, base_currency, onboarded) VALUES (?,?,?,?,?,?,?,?,1)",
                 (DEMO_EMAIL, "Demo Trader", pw_hash, salt, "intraday", "intermediate", 25000, "USD"),
             )
-            uid = cur.lastrowid
 
         rng = random.Random(42)
         trades = _generate_trades(rng)
-        for t in trades:
-            cols = ", ".join(t.keys())
-            ph = ", ".join("?" for _ in t)
-            conn.execute(f"INSERT INTO trades (user_id, {cols}) VALUES (?, {ph})", [uid, *t.values()])
+        # batch-insert so seeding stays fast on a remote Postgres (single round trip)
+        cols = ", ".join(TRADE_COLS)
+        ph = ", ".join("?" for _ in TRADE_COLS)
+        conn.executemany(
+            f"INSERT INTO trades (user_id, {cols}) VALUES (?, {ph})",
+            [[uid, *[t[c] for c in TRADE_COLS]] for t in trades],
+        )
 
         # goals
         conn.execute("INSERT INTO goals (user_id, title, metric, target) VALUES (?,?,?,?)",
@@ -77,6 +88,22 @@ def run(reset=False):
         conn.close()
 
     print(f"Seeded demo account.\n  email:    {DEMO_EMAIL}\n  password: {DEMO_PASSWORD}")
+
+
+def seed_if_empty():
+    """Seed the demo account only when the database has no users yet.
+
+    Called on serverless cold start (see db.ensure_ready) so a freshly
+    provisioned Postgres comes up with a ready-to-explore demo account."""
+    conn = db.get_conn()
+    try:
+        row = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()
+        count = db.row_to_dict(row)["n"]
+    finally:
+        conn.close()
+    if count and int(count) > 0:
+        return
+    run(reset=False)
 
 
 def _generate_trades(rng):

@@ -98,6 +98,7 @@ class Api(BaseHTTPRequestHandler):
         self.query = urllib.parse.parse_qs(parsed.query)
         if path.startswith("/api/"):
             try:
+                db.ensure_ready()  # idempotent: builds schema on serverless cold start
                 self.api(method, path)
             except Exception as e:  # never leak a stack trace to the client
                 self.error(500, f"Server error: {e}")
@@ -168,12 +169,11 @@ class Api(BaseHTTPRequestHandler):
             if conn.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
                 return self.error(409, "An account with that email already exists.")
             pw_hash, salt = auth.hash_password(password)
-            cur = conn.execute(
+            uid = conn.insert(
                 "INSERT INTO users (email, name, pw_hash, pw_salt) VALUES (?,?,?,?)",
                 (email, name, pw_hash, salt),
             )
             conn.commit()
-            uid = cur.lastrowid
         finally:
             conn.close()
         self.json({"token": auth.make_token(uid), "user": {"id": uid, "email": email, "name": name, "onboarded": 0}})
@@ -285,12 +285,12 @@ class Api(BaseHTTPRequestHandler):
         values = [self._coerce(f, d.get(f)) for f in TRADE_FIELDS]
         conn = db.get_conn()
         try:
-            cur = conn.execute(
+            tid = conn.insert(
                 f"INSERT INTO trades (user_id, {cols}) VALUES (?, {placeholders})",
                 [u["id"], *values],
             )
             conn.commit()
-            row = conn.execute("SELECT * FROM trades WHERE id=?", (cur.lastrowid,)).fetchone()
+            row = conn.execute("SELECT * FROM trades WHERE id=?", (tid,)).fetchone()
         finally:
             conn.close()
         self.json({"trade": M.enrich_trade(db.row_to_dict(row))}, 201)
@@ -455,13 +455,13 @@ class Api(BaseHTTPRequestHandler):
         d = self.read_json()
         conn = db.get_conn()
         try:
-            cur = conn.execute(
+            gid = conn.insert(
                 "INSERT INTO goals (user_id, title, metric, target, deadline) VALUES (?,?,?,?,?)",
                 (u["id"], d.get("title", "Untitled goal"), d.get("metric", "custom"),
                  float(d.get("target") or 0), d.get("deadline", "")),
             )
             conn.commit()
-            row = conn.execute("SELECT * FROM goals WHERE id=?", (cur.lastrowid,)).fetchone()
+            row = conn.execute("SELECT * FROM goals WHERE id=?", (gid,)).fetchone()
         finally:
             conn.close()
         self.json({"goal": db.row_to_dict(row)}, 201)
@@ -529,10 +529,10 @@ class Api(BaseHTTPRequestHandler):
         d = self.read_json()
         conn = db.get_conn()
         try:
-            cur = conn.execute("INSERT INTO habits (user_id, name) VALUES (?,?)",
-                               (u["id"], d.get("name", "New habit")))
+            hid = conn.insert("INSERT INTO habits (user_id, name) VALUES (?,?)",
+                              (u["id"], d.get("name", "New habit")))
             conn.commit()
-            row = conn.execute("SELECT * FROM habits WHERE id=?", (cur.lastrowid,)).fetchone()
+            row = conn.execute("SELECT * FROM habits WHERE id=?", (hid,)).fetchone()
         finally:
             conn.close()
         h = db.row_to_dict(row)

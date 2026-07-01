@@ -44,14 +44,42 @@ Or just start fresh and create your own account — the landing page walks you t
 
 ---
 
+## ☁️ Deploy to Vercel (free)
+
+The app runs locally on **SQLite** with zero dependencies, and automatically switches to **Postgres** in production when a database URL is present in the environment — same codebase, no config toggles. On Vercel it runs as a serverless Python function (the request handler is already a `BaseHTTPRequestHandler`, which Vercel's Python runtime calls directly), with the SPA served from the CDN.
+
+**Steps (all in the Vercel dashboard — no CLI needed):**
+
+1. **Import the repo** → [vercel.com/new](https://vercel.com/new) → *Add New… → Project* → import `V1shishta/TradeLogger`. Framework preset: **Other**. Deploy.
+2. **Add a database** → project **Storage** tab → *Create Database → Postgres* → connect it to the project. This injects `POSTGRES_URL` (and friends) as environment variables automatically.
+3. **Redeploy** (Deployments → ⋯ → Redeploy) so the function picks up the new env vars.
+4. **Open the URL.** On the first request the app creates its schema and seeds the demo account automatically — log in with `demo@tradejournal.pro` / `demo1234`.
+
+**Relevant files:** [`vercel.json`](vercel.json) (routing), [`api/index.py`](api/index.py) (serverless entry), [`requirements.txt`](requirements.txt) (`psycopg`), and the dual-backend logic in [`backend/db.py`](backend/db.py).
+
+**Env vars**
+
+| Var | Purpose |
+|---|---|
+| `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` / `DATABASE_URL` | Provided by Vercel Postgres; presence switches the app to Postgres |
+| `AUTO_SEED` | `1` (default) auto-seeds the demo account on an empty DB; set `0` to skip |
+| `TJP_SECRET` | Fixed token-signing secret — **set this in production** so sessions survive redeploys |
+
+> Note: Vercel's filesystem is ephemeral, so SQLite is not viable there — the managed Postgres above is what makes the deployment persistent and free.
+
+---
+
 ## 🏗️ Architecture
 
 ```
 trade-journal-pro/
-├── run.py                  # entry point / CLI (serve · --seed · --reset)
-├── backend/                # standard-library only
+├── run.py                  # local entry point / CLI (serve · --seed · --reset)
+├── api/index.py            # Vercel serverless entry (re-exports the request handler)
+├── vercel.json             # Vercel routing (static SPA + /api function)
+├── requirements.txt        # psycopg — only needed for the Postgres deployment
+├── backend/                # standard-library only (psycopg used only in prod)
 │   ├── server.py           #   HTTP server, routing, static serving, REST API
-│   ├── db.py               #   SQLite schema + connection helpers
+│   ├── db.py               #   dual SQLite/Postgres layer + schema + helpers
 │   ├── auth.py             #   PBKDF2 hashing + HMAC-signed tokens
 │   ├── metrics.py          #   P&L, win rate, expectancy, R, drawdown, equity curve, breakdowns
 │   ├── coach.py            #   explainable behavioral-analysis engine + report generator
