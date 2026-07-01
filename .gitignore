@@ -1,0 +1,20 @@
+# database & runtime
+*.db
+*.db-journal
+*.sqlite3
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# local preview config (machine-specific)
+.claude/launch.json
