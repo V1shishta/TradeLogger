@@ -17,11 +17,17 @@ import sqlite3
 import threading
 
 # --- backend selection -----------------------------------------------------
-# Vercel Postgres / Neon expose several URLs; prefer a direct (non-pooled) one.
-DATABASE_URL = (
-    os.environ.get("POSTGRES_URL_NON_POOLING")
-    or os.environ.get("POSTGRES_URL")
-    or os.environ.get("DATABASE_URL")
+# Vercel Postgres / Neon expose the connection string under several different
+# names depending on the integration. Prefer a *direct / unpooled* URL so we
+# don't depend on a PgBouncer pooler (which restricts prepared statements).
+DATABASE_URL = next(
+    (os.environ[k] for k in (
+        "POSTGRES_URL_NON_POOLING",   # classic Vercel Postgres (unpooled)
+        "DATABASE_URL_UNPOOLED",       # Neon marketplace (unpooled)
+        "POSTGRES_URL",                # classic Vercel Postgres (pooled)
+        "DATABASE_URL",                # generic / Neon (pooled)
+    ) if os.environ.get(k)),
+    None,
 )
 IS_PG = bool(DATABASE_URL)
 
@@ -80,7 +86,9 @@ class Conn:
 
 def get_conn():
     if IS_PG:
-        raw = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        # prepare_threshold=None disables server-side prepared statements, which
+        # keeps us compatible with transaction-pooled (PgBouncer) endpoints.
+        raw = psycopg.connect(DATABASE_URL, row_factory=dict_row, prepare_threshold=None)
         return Conn(raw, True)
     raw = sqlite3.connect(DB_PATH)
     raw.row_factory = sqlite3.Row
