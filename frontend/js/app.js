@@ -14,7 +14,21 @@
     { id: "goals", label: "Goals & Habits", icon: "goals" },
   ];
 
-  const INSTRUMENTS = ["equity", "option", "future", "crypto", "forex"];
+  const INSTRUMENTS = ["equity", "option", "future", "commodity", "crypto", "forex"];
+
+  // MCX (India) commodity contracts → P&L multiplier (contract's underlying
+  // quantity expressed in the price-quotation unit). Symbol list is the full
+  // set of live MCX futures; multipliers are from MCX contract specs and can be
+  // overridden per trade. Source of symbols: Zerodha Kite public instruments dump.
+  const MCX_MULT = {
+    GOLD: 100, GOLDM: 10, GOLDGUINEA: 1, GOLDPETAL: 1, GOLDTEN: 1,
+    SILVER: 30, SILVERM: 5, SILVERMIC: 1, SILVER100: 1,
+    CRUDEOIL: 100, CRUDEOILM: 10, NATURALGAS: 1250, NATGASMINI: 250,
+    COPPER: 2500, ZINC: 5000, ZINCMINI: 1000, LEAD: 5000, LEADMINI: 1000,
+    ALUMINIUM: 5000, ALUMINI: 1000, NICKEL: 1500, MENTHAOIL: 360, CARDAMOM: 100,
+    COTTON: 25, KAPAS: 200, COTTONOIL: 200, STEELREBAR: 10, ELECDMBL: 1,
+    MCXBULLDEX: 50, MCXMETLDEX: 50,
+  };
   const SESSIONS = ["Pre-market", "Open", "Midday", "Power Hour", "After-hours"];
   const CONDITIONS = ["Trending", "Ranging", "Volatile"];
   const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "Daily", "Weekly"];
@@ -369,7 +383,7 @@
     return `<tr data-id="${t.id}">
       <td class="t-sym">${esc(t.symbol)} <small class="faint">${esc(t.instrument||"")}</small></td>
       <td>${side}</td>
-      <td class="mono">${num(t.quantity, 0)}</td>
+      <td class="mono">${num(t.quantity, 0)}${t.multiplier && t.multiplier != 1 ? ` <span class="faint">×${t.multiplier}</span>` : ""}</td>
       <td class="mono">${money(t.entry_price)}</td>
       <td class="mono">${t.exit_price==null?'<span class="faint">—</span>':money(t.exit_price)}</td>
       <td>${pnl}</td>
@@ -409,7 +423,8 @@
     const body = `
       <div class="section-label">Position</div>
       <div class="field-row-3">
-        <div class="field"><label>Symbol *</label><input id="tm-symbol" value="${esc(t.symbol||"")}" placeholder="AAPL"/></div>
+        <div class="field"><label>Symbol *</label><input id="tm-symbol" value="${esc(t.symbol||"")}" placeholder="AAPL / GOLD" list="dl-mcx" autocomplete="off"/>
+          <datalist id="dl-mcx">${Object.keys(MCX_MULT).map((s)=>`<option>${s}</option>`).join("")}</datalist></div>
         <div class="field"><label>Instrument</label><select id="tm-instrument">${sel(INSTRUMENTS, t.instrument||"equity")}</select></div>
         <div class="field"><label>Direction</label><select id="tm-direction"><option value="long" ${t.direction!=="short"?"selected":""}>Long</option><option value="short" ${t.direction==="short"?"selected":""}>Short</option></select></div>
       </div>
@@ -421,11 +436,12 @@
       <div class="field-row-3">
         <div class="field"><label>Stop (for R)</label><input id="tm-stop" type="number" step="any" value="${t.stop_price??""}" placeholder="185.90"/></div>
         <div class="field"><label>Fees</label><input id="tm-fees" type="number" step="any" value="${t.fees??""}" placeholder="1.00"/></div>
-        <div class="field"><label>Execution rating</label><div class="rating-stars" id="tm-rating"></div></div>
+        <div class="field"><label>Contract multiplier <span class="faint" id="tm-mult-hint" style="font-weight:400"></span></label><input id="tm-mult" type="number" step="any" value="${t.multiplier??1}" placeholder="1"/></div>
       </div>
-      <div class="field-row">
+      <div class="field-row-3">
         <div class="field"><label>Entry time *</label><input id="tm-etime" type="datetime-local" value="${(t.entry_time||nowLocal).slice(0,16)}"/></div>
         <div class="field"><label>Exit time</label><input id="tm-xtime" type="datetime-local" value="${t.exit_time?t.exit_time.slice(0,16):""}"/></div>
+        <div class="field"><label>Execution rating</label><div class="rating-stars" id="tm-rating"></div></div>
       </div>
 
       <div class="section-label">Context</div>
@@ -457,12 +473,29 @@
       rEl.querySelectorAll(".star").forEach((s)=>s.addEventListener("click",()=>{rating=+s.dataset.r;drawStars();})); };
     drawStars();
 
+    // auto-fill contract multiplier from the MCX table for commodity/future
+    // symbols (always editable afterwards).
+    const applyMult = () => {
+      const sym = (el("tm-symbol").value || "").trim().toUpperCase();
+      const inst = el("tm-instrument").value;
+      const hint = el("tm-mult-hint");
+      if ((inst === "commodity" || inst === "future") && MCX_MULT[sym] != null) {
+        el("tm-mult").value = MCX_MULT[sym];
+        hint.textContent = `· MCX ${sym} = ${MCX_MULT[sym]}`;
+      } else {
+        hint.textContent = "";
+      }
+    };
+    el("tm-symbol").addEventListener("change", applyMult);
+    el("tm-instrument").addEventListener("change", applyMult);
+    if (!editing) applyMult();
+
     el("tm-save").addEventListener("click", async () => {
       const g = (id) => el(id).value;
       const payload = {
         symbol: g("tm-symbol").trim(), instrument: g("tm-instrument"), direction: g("tm-direction"),
         quantity: g("tm-qty"), entry_price: g("tm-entry"), exit_price: g("tm-exit") || null,
-        stop_price: g("tm-stop") || null, fees: g("tm-fees") || 0,
+        stop_price: g("tm-stop") || null, fees: g("tm-fees") || 0, multiplier: g("tm-mult") || 1,
         entry_time: g("tm-etime"), exit_time: g("tm-xtime") || null,
         strategy: g("tm-strategy"), setup: g("tm-setup"), timeframe: g("tm-tf"),
         market_condition: g("tm-cond"), session: g("tm-session"), emotion: g("tm-emotion"),

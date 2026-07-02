@@ -36,6 +36,9 @@ def enrich_trade(t: dict) -> dict:
     entry = t.get("entry_price") or 0
     exit_ = t.get("exit_price")
     fees = t.get("fees") or 0
+    # contract/point multiplier — 1 for equities/crypto, lot value for
+    # futures & commodities (e.g. MCX GOLD = 100, CRUDEOIL = 100).
+    mult = t.get("multiplier") or 1
     direction = (t.get("direction") or "long").lower()
     is_open = exit_ is None or exit_ == ""
 
@@ -47,16 +50,17 @@ def enrich_trade(t: dict) -> dict:
         t["is_win"] = None
     else:
         exit_ = float(exit_)
-        gross = (exit_ - entry) * qty if direction == "long" else (entry - exit_) * qty
+        move = (exit_ - entry) if direction == "long" else (entry - exit_)
+        gross = move * qty * mult
         pnl = gross - fees
         t["pnl"] = round(pnl, 2)
-        cost_basis = abs(entry * qty) or 1
+        cost_basis = abs(entry * qty * mult) or 1
         t["return_pct"] = round(pnl / cost_basis * 100, 2)
         t["is_win"] = pnl > 0
         stop = t.get("stop_price")
         if stop:
             risk_per_unit = abs(entry - float(stop))
-            risk = risk_per_unit * abs(qty)
+            risk = risk_per_unit * abs(qty) * mult
             t["r_multiple"] = round(pnl / risk, 2) if risk else None
         else:
             t["r_multiple"] = None

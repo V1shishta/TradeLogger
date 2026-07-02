@@ -128,6 +128,7 @@ def _schema():
             exit_price {real},
             stop_price {real},
             fees {real} DEFAULT 0,
+            multiplier {real} DEFAULT 1,
             entry_time TEXT NOT NULL,
             exit_time TEXT,
             strategy TEXT DEFAULT '',
@@ -166,12 +167,26 @@ def _schema():
     ]
 
 
+def _run_migrations(conn):
+    """Idempotent, additive migrations for databases created by an earlier
+    release. Safe to run on every startup."""
+    real = "DOUBLE PRECISION" if IS_PG else "REAL"
+    # trades.multiplier — contract/point multiplier (futures & commodities)
+    if IS_PG:
+        conn.execute(f"ALTER TABLE trades ADD COLUMN IF NOT EXISTS multiplier {real} DEFAULT 1")
+    else:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+        if "multiplier" not in cols:
+            conn.execute(f"ALTER TABLE trades ADD COLUMN multiplier {real} DEFAULT 1")
+
+
 def init_db():
     with _lock:
         conn = get_conn()
         try:
             for stmt in _schema():
                 conn.execute(stmt)
+            _run_migrations(conn)
             conn.commit()
         finally:
             conn.close()

@@ -17,6 +17,7 @@ SYNONYMS = {
     "entry_price": ["entryprice", "buyprice", "openprice", "avgentry", "price", "fillprice", "entry"],
     "exit_price":  ["exitprice", "sellprice", "closeprice", "avgexit", "exit"],
     "stop_price":  ["stop", "stopprice", "stoploss"],
+    "multiplier":  ["multiplier", "contractmultiplier", "pointvalue", "lotmultiplier"],
     "fees":        ["fees", "commission", "commissions", "fee", "cost"],
     "entry_time":  ["entrytime", "opendate", "datetime", "date", "opentime", "tradedate", "boughtdate"],
     "exit_time":   ["exittime", "closedate", "closetime", "solddate"],
@@ -31,7 +32,7 @@ SYNONYMS = {
     "emotion":     ["emotion", "mood", "psychology"],
 }
 
-NUMERIC = {"quantity", "entry_price", "exit_price", "stop_price", "fees"}
+NUMERIC = {"quantity", "entry_price", "exit_price", "stop_price", "fees", "multiplier"}
 
 
 def _norm(h):

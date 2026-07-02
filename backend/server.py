@@ -22,7 +22,7 @@ MIME = {
 
 TRADE_FIELDS = [
     "symbol", "instrument", "direction", "quantity", "entry_price", "exit_price",
-    "stop_price", "fees", "entry_time", "exit_time", "strategy", "setup",
+    "stop_price", "fees", "multiplier", "entry_time", "exit_time", "strategy", "setup",
     "market_condition", "timeframe", "session", "tags", "pre_notes", "post_notes",
     "emotion", "rating", "screenshot",
 ]
@@ -296,13 +296,15 @@ class Api(BaseHTTPRequestHandler):
         self.json({"trade": M.enrich_trade(db.row_to_dict(row))}, 201)
 
     def _coerce(self, field, val):
-        if field in ("quantity", "entry_price", "exit_price", "stop_price", "fees"):
+        if field in ("quantity", "entry_price", "exit_price", "stop_price", "fees", "multiplier"):
             if val in ("", None):
-                return None if field in ("exit_price", "stop_price") else 0
+                if field in ("exit_price", "stop_price"):
+                    return None
+                return 1 if field == "multiplier" else 0
             try:
                 return float(val)
             except (TypeError, ValueError):
-                return None
+                return 1 if field == "multiplier" else None
         if field == "rating":
             try:
                 return int(val or 0)
