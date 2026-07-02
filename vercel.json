@@ -13,6 +13,6 @@
     { "src": "/", "dest": "/frontend/index.html" },
     { "src": "/favicon.svg", "dest": "/frontend/assets/favicon.svg" },
     { "src": "/(css|js|assets)/(.+)", "dest": "/frontend/$1/$2" },
-    { "src": "/(.+)", "dest": "/frontend/index.html" }
+    { "src": "/((?!_vercel/).+)", "dest": "/frontend/index.html" }
   ]
 }
