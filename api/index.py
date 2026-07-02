@@ -12,4 +12,12 @@ import sys
 # make the repo root importable so `backend` resolves inside the lambda
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.server import Api as handler  # noqa: E402  (Vercel looks for `handler`)
+from backend.server import Api  # noqa: E402
+
+
+# Vercel's Python builder statically scans for a top-level class named `handler`
+# (a BaseHTTPRequestHandler subclass). An `import ... as handler` alias isn't
+# recognized, so we declare it explicitly.
+class handler(Api):  # noqa: N801  (name required verbatim by the runtime)
+    pass
+
