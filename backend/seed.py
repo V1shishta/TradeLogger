@@ -51,7 +51,7 @@ def run(reset=False):
             uid = conn.insert(
                 "INSERT INTO users (email, name, pw_hash, pw_salt, trader_type, experience, "
                 "account_size, base_currency, onboarded) VALUES (?,?,?,?,?,?,?,?,1)",
-                (DEMO_EMAIL, "Demo Trader", pw_hash, salt, "intraday", "intermediate", 25000, "USD"),
+                (DEMO_EMAIL, "Demo Trader", pw_hash, salt, "intraday", "intermediate", 25000, "INR"),
             )
 
         rng = random.Random(42)

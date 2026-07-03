@@ -1,7 +1,7 @@
 /* Trade Journal Pro — SPA controller.
    Handles auth, onboarding, routing, and every view. */
 (() => {
-  const { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, icon, toast, modal, close, confirm } = UI;
+  const { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, icon, toast, modal, close, confirm, setCurrency } = UI;
   const app = document.getElementById("app");
   let user = null;
 
@@ -137,7 +137,7 @@
   // Onboarding
   // ======================================================================
   function renderOnboarding() {
-    const state = { trader_type: "intraday", experience: "beginner", account_size: "", base_currency: "USD" };
+    const state = { trader_type: "intraday", experience: "beginner", account_size: "", base_currency: "INR" };
     app.innerHTML = `
       <div class="auth-wrap">
         <div class="auth-hero">
@@ -162,7 +162,7 @@
           <div class="field-row" style="margin-top:20px">
             <div class="field"><label>Account size</label><input id="ob-size" type="number" placeholder="25000"/></div>
             <div class="field"><label>Base currency</label>
-              <select id="ob-cur">${["USD","EUR","GBP","INR","JPY","AUD","CAD"].map(c=>`<option>${c}</option>`).join("")}</select></div>
+              <select id="ob-cur">${["INR","USD","EUR","GBP","JPY","AUD","CAD"].map(c=>`<option>${c}</option>`).join("")}</select></div>
           </div>
           <div class="form-error" id="ob-err"></div>
           <button class="btn btn-primary" id="ob-submit" style="width:100%;justify-content:center">Enter my dashboard</button>
@@ -198,6 +198,7 @@
   // App shell + router
   // ======================================================================
   function renderShell() {
+    setCurrency(user.base_currency);
     app.innerHTML = `
       <div class="shell">
         <aside class="sidebar" id="sidebar">
@@ -281,7 +282,7 @@
         ${kpi("Net P&L", signed(m.net_pnl), cls(m.net_pnl), `${m.closed_trades} closed trades`, "dollar")}
         ${kpi("Win Rate", pct(m.win_rate), m.win_rate>=50?"pos":"", `${m.wins}W / ${m.losses}L`, "trophy")}
         ${kpi("Profit Factor", m.profit_factor==null?"∞":num(m.profit_factor), m.profit_factor>=1.5?"pos":m.profit_factor<1?"neg":"", "gross win ÷ gross loss", "analytics")}
-        ${kpi("Expectancy", signed(m.expectancy), cls(m.expectancy), "avg $ per trade", "coach")}
+        ${kpi("Expectancy", signed(m.expectancy), cls(m.expectancy), `avg ${UI.curSym()} per trade`, "coach")}
       </div>
       <div class="grid kpi-grid" style="margin-bottom:20px">
         ${kpi("Avg R", m.avg_r==null?"—":num(m.avg_r), m.avg_r>0?"pos":m.avg_r<0?"neg":"", "reward-to-risk", "trades")}
@@ -424,7 +425,7 @@
       <div class="section-label">Position</div>
       <div class="field-row-3">
         <div class="field"><label>Symbol *</label><input id="tm-symbol" value="${esc(t.symbol||"")}" placeholder="AAPL / GOLD" list="dl-mcx" autocomplete="off"/>
-          <datalist id="dl-mcx">${Object.keys(MCX_MULT).map((s)=>`<option>${s}</option>`).join("")}</datalist></div>
+          <datalist id="dl-mcx"></datalist></div>
         <div class="field"><label>Instrument</label><select id="tm-instrument">${sel(INSTRUMENTS, t.instrument||"equity")}</select></div>
         <div class="field"><label>Direction</label><select id="tm-direction"><option value="long" ${t.direction!=="short"?"selected":""}>Long</option><option value="short" ${t.direction==="short"?"selected":""}>Short</option></select></div>
       </div>
@@ -486,8 +487,22 @@
         hint.textContent = "";
       }
     };
+    // Symbol suggestions: only for commodities, and only after the user has
+    // typed at least one character (prefix match, capped at 8 results).
+    const refreshSuggestions = () => {
+      const dl = el("dl-mcx");
+      const inst = el("tm-instrument").value;
+      const v = (el("tm-symbol").value || "").trim().toUpperCase();
+      if (inst === "commodity" && v.length >= 1) {
+        const matches = Object.keys(MCX_MULT).filter((s) => s.startsWith(v)).slice(0, 8);
+        dl.innerHTML = matches.map((s) => `<option>${s}</option>`).join("");
+      } else {
+        dl.innerHTML = "";
+      }
+    };
+    el("tm-symbol").addEventListener("input", refreshSuggestions);
     el("tm-symbol").addEventListener("change", applyMult);
-    el("tm-instrument").addEventListener("change", applyMult);
+    el("tm-instrument").addEventListener("change", () => { refreshSuggestions(); applyMult(); });
     if (!editing) applyMult();
 
     el("tm-save").addEventListener("click", async () => {
@@ -796,9 +811,9 @@
       <div class="field"><label>Track against metric</label>
         <select id="g-metric">
           <option value="win_rate">Win rate (%)</option>
-          <option value="pnl">Net P&L ($)</option>
+          <option value="pnl">Net P&L (${UI.curSym()})</option>
           <option value="profit_factor">Profit factor</option>
-          <option value="expectancy">Expectancy ($)</option>
+          <option value="expectancy">Expectancy (${UI.curSym()})</option>
           <option value="custom">Custom (manual)</option>
         </select></div>
       <div class="field"><label>Target value</label><input id="g-target" type="number" step="any" placeholder="55"/></div>

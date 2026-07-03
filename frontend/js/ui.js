@@ -13,11 +13,22 @@ const UI = (() => {
   }
 
   // ---- formatting ----
+  // Active currency, driven by the logged-in user's base_currency. Defaults to
+  // INR (₹) since the app is India/MCX-oriented.
+  const CURRENCY_SYMBOLS = { INR: "₹", USD: "$", EUR: "€", GBP: "£", JPY: "¥", AUD: "A$", CAD: "C$" };
+  const CURRENCY_LOCALE = { INR: "en-IN", USD: "en-US" };
+  let currencyCode = "INR";
+  let currencySymbol = "₹";
+  function setCurrency(code) {
+    currencyCode = (code && CURRENCY_SYMBOLS[code]) ? code : "INR";
+    currencySymbol = CURRENCY_SYMBOLS[currencyCode];
+  }
   function money(v, dp = 2) {
     if (v == null || v === "" || isNaN(v)) return "—";
     const n = Number(v);
     const sign = n < 0 ? "-" : "";
-    return sign + "$" + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    const locale = CURRENCY_LOCALE[currencyCode] || undefined;
+    return sign + currencySymbol + Math.abs(n).toLocaleString(locale, { minimumFractionDigits: dp, maximumFractionDigits: dp });
   }
   function signed(v) {
     if (v == null || isNaN(v)) return "—";
@@ -55,7 +66,7 @@ const UI = (() => {
     check: '<path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
     alert: '<path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
     menu: '<path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-    dollar: '<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    dollar: '<text x="12" y="18" font-size="18" text-anchor="middle" font-weight="700" font-family="system-ui, sans-serif" fill="currentColor">₹</text>',
     trophy: '<path d="M8 21h8m-4-4v4M6 4h12v4a6 6 0 0 1-12 0V4zM6 6H3v2a3 3 0 0 0 3 3M18 6h3v2a3 3 0 0 1-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   };
   function icon(name) {
@@ -102,5 +113,5 @@ const UI = (() => {
     el("cf-yes").addEventListener("click", () => { close(); onYes(); });
   }
 
-  return { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, icon, toast, modal, close, confirm };
+  return { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, icon, toast, modal, close, confirm, setCurrency, curSym: () => currencySymbol };
 })();

@@ -79,6 +79,7 @@ const Charts = (() => {
   function baseOpts({ money }) {
     const grid = "rgba(255,255,255,0.05)";
     const tick = css("--text-faint");
+    const sym = (typeof UI !== "undefined" && UI.curSym) ? UI.curSym() : "$";
     return {
       responsive: true, maintainAspectRatio: false,
       interaction: { intersect: false, mode: "index" },
@@ -87,13 +88,13 @@ const Charts = (() => {
         tooltip: {
           backgroundColor: css("--panel-2"), borderColor: css("--border-2"), borderWidth: 1,
           titleColor: css("--text"), bodyColor: css("--text-dim"), padding: 10, displayColors: false,
-          callbacks: money ? { label: (c) => "$" + Number(c.raw).toLocaleString(undefined, { maximumFractionDigits: 2 }) } : {},
+          callbacks: money ? { label: (c) => sym + Number(c.raw).toLocaleString(undefined, { maximumFractionDigits: 2 }) } : {},
         },
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: tick, maxRotation: 0, autoSkip: true, maxTicksLimit: 8, font: { size: 11 } } },
         y: { grid: { color: grid }, ticks: { color: tick, font: { size: 11 },
-          callback: (v) => (money ? "$" + Number(v).toLocaleString(undefined, { notation: "compact" }) : v) } },
+          callback: (v) => (money ? sym + Number(v).toLocaleString(undefined, { notation: "compact" }) : v) } },
       },
     };
   }

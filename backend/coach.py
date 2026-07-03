@@ -59,7 +59,7 @@ def detect_revenge_trading(trades):
         "count": len(hits),
         "impact": round(hit_pnl, 2),
         "evidence": f"{len(hits)} trades opened within 45 min of a loss, most with larger size than the losing trade. "
-                    f"Net P&L on these: ${hit_pnl:,.2f}.",
+                    f"Net P&L on these: ₹{hit_pnl:,.2f}.",
         "recommendation": "Add a mandatory cool-off rule: no new entry for 30–60 min after a losing trade, and never "
                           "increase size on the trade immediately following a loss.",
     }
@@ -91,8 +91,8 @@ def detect_overtrading(trades):
         "count": len(heavy_days),
         "impact": round(heavy_pnl, 2),
         "evidence": f"On {len(heavy_days)} high-volume day(s) you averaged {max(len(ts) for ts in heavy_days.values())} "
-                    f"trades vs a {avg:.1f}/day baseline. Avg P&L on heavy days ${heavy_avg:,.2f} vs "
-                    f"${normal_avg:,.2f} on normal days.",
+                    f"trades vs a {avg:.1f}/day baseline. Avg P&L on heavy days ₹{heavy_avg:,.2f} vs "
+                    f"₹{normal_avg:,.2f} on normal days.",
         "recommendation": "Cap daily trade count near your baseline. Quality over quantity — pre-define the number of "
                           "A+ setups you'll take per session and stop when you hit it.",
     }
@@ -113,7 +113,7 @@ def detect_cutting_winners(trades):
     if payoff >= 1.0 and not hold_asym:
         return None
     sev = "high" if payoff < 0.7 else "medium"
-    ev = f"Average winner ${avg_win:,.2f} vs average loser ${avg_loss:,.2f} (payoff ratio {payoff:.2f}). "
+    ev = f"Average winner ₹{avg_win:,.2f} vs average loser ₹{avg_loss:,.2f} (payoff ratio {payoff:.2f}). "
     if hold_asym:
         ev += f"You hold winners {mean(win_hold):.1f}h but losers {mean(loss_hold):.1f}h — the opposite of a healthy edge."
     return {
@@ -169,7 +169,7 @@ def detect_fomo(trades):
     ev = ""
     if fomo:
         wr = sum(1 for t in fomo if t["pnl"] > 0) / len(fomo) * 100
-        ev += f"{len(fomo)} trades were tagged FOMO/greed with a {wr:.0f}% win rate and ${fomo_pnl:,.2f} net. "
+        ev += f"{len(fomo)} trades were tagged FOMO/greed with a {wr:.0f}% win rate and ₹{fomo_pnl:,.2f} net. "
     if chase:
         ev += f"{len(chase)} instance(s) of chasing (3+ re-entries in one symbol in a day)."
     return {
@@ -201,8 +201,8 @@ def detect_discipline(trades):
         "severity": "info",
         "count": len(hi),
         "impact": round(hi_exp - lo_exp, 2),
-        "evidence": f"Well-executed trades (self-rated 4–5) average ${hi_exp:,.2f} vs ${lo_exp:,.2f} for rushed ones "
-                    f"(rated 1–2). Following your process is worth ${hi_exp - lo_exp:,.2f}/trade to you.",
+        "evidence": f"Well-executed trades (self-rated 4–5) average ₹{hi_exp:,.2f} vs ₹{lo_exp:,.2f} for rushed ones "
+                    f"(rated 1–2). Following your process is worth ₹{hi_exp - lo_exp:,.2f}/trade to you.",
         "recommendation": "Keep grading execution. Your data proves discipline is your edge — protect it by only taking "
                           "trades you'd rate 4+ in advance.",
     }
@@ -259,7 +259,7 @@ def generate_report(trades, metrics, period_label="All time"):
     if wr >= 50:
         strengths.append(f"Win rate of {wr}% keeps you on the right side of trades.")
     if exp > 0:
-        strengths.append(f"Positive expectancy of ${exp:,.2f} per trade — the system has an edge.")
+        strengths.append(f"Positive expectancy of ₹{exp:,.2f} per trade — the system has an edge.")
     if metrics.get("avg_r") and metrics["avg_r"] >= 0.5:
         strengths.append(f"Healthy average R of {metrics['avg_r']} shows good reward-to-risk.")
 
@@ -283,7 +283,7 @@ def generate_report(trades, metrics, period_label="All time"):
     grade = ["D", "C", "C+", "B", "B+", "A"][max(0, min(5, score))]
 
     headline = (f"{period_label}: {metrics['closed_trades']} closed trades, "
-                f"${metrics['net_pnl']:,.2f} net, {wr}% win rate.")
+                f"₹{metrics['net_pnl']:,.2f} net, {wr}% win rate.")
 
     return {
         "period": period_label,
