@@ -49,6 +49,14 @@ const UI = (() => {
   function initials(name) {
     return (name || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   }
+  // Title Case a raw value (handles snake/kebab/space separators).
+  function titleCase(s) {
+    if (!s) return "";
+    return String(s).replace(/[_-]+/g, " ").split(" ")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  }
 
   // ---- icons (inline svg, 24x24 stroke) ----
   const ICONS = {
@@ -113,5 +121,5 @@ const UI = (() => {
     el("cf-yes").addEventListener("click", () => { close(); onYes(); });
   }
 
-  return { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, icon, toast, modal, close, confirm, setCurrency, curSym: () => currencySymbol };
+  return { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, titleCase, icon, toast, modal, close, confirm, setCurrency, curSym: () => currencySymbol };
 })();

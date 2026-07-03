@@ -1,7 +1,7 @@
 /* Trade Journal Pro — SPA controller.
    Handles auth, onboarding, routing, and every view. */
 (() => {
-  const { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, icon, toast, modal, close, confirm, setCurrency } = UI;
+  const { el, h, esc, money, signed, pct, num, cls, date, datetime, initials, titleCase, icon, toast, modal, close, confirm, setCurrency } = UI;
   const app = document.getElementById("app");
   let user = null;
 
@@ -11,10 +11,20 @@
     { id: "calendar", label: "Calendar", icon: "calendar" },
     { id: "analytics", label: "Analytics", icon: "analytics" },
     { id: "coach", label: "AI Coach", icon: "coach" },
-    { id: "goals", label: "Goals & Habits", icon: "goals" },
   ];
 
+  // stored instrument codes → display labels
   const INSTRUMENTS = ["equity", "option", "future", "commodity", "crypto", "forex"];
+  const INSTRUMENT_LABELS = {
+    equity: "Equity", option: "Equity Options", future: "Equity Futures",
+    commodity: "Commodity", crypto: "Crypto", forex: "Forex",
+  };
+  const instLabel = (v) => INSTRUMENT_LABELS[v] || titleCase(v);
+  // which symbol list to suggest from, per instrument
+  const symbolSource = (inst) =>
+    inst === "commodity" ? Object.keys(MCX_MULT)
+    : (inst === "equity" || inst === "option" || inst === "future") ? (window.EQUITY_SYMBOLS || [])
+    : null;
 
   // MCX (India) commodity contracts → P&L multiplier (contract's underlying
   // quantity expressed in the price-quotation unit). Symbol list is the full
@@ -213,7 +223,7 @@
           <div class="sidebar-foot">
             <div class="user-row">
               <div class="avatar">${initials(user.name)}</div>
-              <div class="meta"><b>${esc(user.name)}</b><small>${esc(user.trader_type || "trader")} · ${esc(user.experience||"")}</small></div>
+              <div class="meta"><b>${esc(user.name)}</b><small>${esc(titleCase(user.trader_type || "Trader"))}${user.experience ? " · " + esc(titleCase(user.experience)) : ""}</small></div>
             </div>
             <a class="nav-item" id="logout" style="margin-top:6px">${icon("logout")}<span>Log out</span></a>
           </div>
@@ -251,7 +261,6 @@
     calendar: { title: "Calendar", sub: "Daily P&L heatmap", fn: viewCalendar },
     analytics: { title: "Analytics", sub: "Compare performance across strategies and conditions", fn: viewAnalytics },
     coach: { title: "AI Coach", sub: "Explainable, data-driven behavioral insights", fn: viewCoach },
-    goals: { title: "Goals & Habits", sub: "Build disciplined, measurable routines", fn: viewGoals },
   };
 
   function router() {
@@ -375,14 +384,14 @@
 
   function tradeRow(t, full) {
     const side = t.direction === "long"
-      ? '<span class="pill pill-blue">LONG</span>' : '<span class="pill pill-amber">SHORT</span>';
-    const pnl = t.is_open ? '<span class="pill pill-gray">OPEN</span>'
+      ? '<span class="pill pill-blue">Long</span>' : '<span class="pill pill-amber">Short</span>';
+    const pnl = t.is_open ? '<span class="pill pill-gray">Open</span>'
       : `<span class="${cls(t.pnl)} mono" style="font-weight:700">${signed(t.pnl)}</span>`;
     const r = t.r_multiple == null ? '<span class="faint">—</span>'
       : `<span class="${cls(t.r_multiple)} mono">${num(t.r_multiple, 2)}R</span>`;
-    const emo = t.emotion ? `<span class="tag">${esc(t.emotion)}</span>` : "";
+    const emo = t.emotion ? `<span class="tag">${esc(titleCase(t.emotion))}</span>` : "";
     return `<tr data-id="${t.id}">
-      <td class="t-sym">${esc(t.symbol)} <small class="faint">${esc(t.instrument||"")}</small></td>
+      <td class="t-sym">${esc(t.symbol)} <small class="faint">${esc(instLabel(t.instrument||""))}</small></td>
       <td>${side}</td>
       <td class="mono">${num(t.quantity, 0)}${t.multiplier && t.multiplier != 1 ? ` <span class="faint">×${t.multiplier}</span>` : ""}</td>
       <td class="mono">${money(t.entry_price)}</td>
@@ -426,7 +435,7 @@
       <div class="field-row-3">
         <div class="field"><label>Symbol *</label><input id="tm-symbol" value="${esc(t.symbol||"")}" placeholder="AAPL / GOLD" list="dl-mcx" autocomplete="off"/>
           <datalist id="dl-mcx"></datalist></div>
-        <div class="field"><label>Instrument</label><select id="tm-instrument">${sel(INSTRUMENTS, t.instrument||"equity")}</select></div>
+        <div class="field"><label>Instrument</label><select id="tm-instrument">${INSTRUMENTS.map((o)=>`<option value="${o}" ${o===(t.instrument||"equity")?"selected":""}>${esc(instLabel(o))}</option>`).join("")}</select></div>
         <div class="field"><label>Direction</label><select id="tm-direction"><option value="long" ${t.direction!=="short"?"selected":""}>Long</option><option value="short" ${t.direction==="short"?"selected":""}>Short</option></select></div>
       </div>
       <div class="field-row-3">
@@ -455,7 +464,7 @@
       <div class="field-row-3">
         <div class="field"><label>Market condition</label><select id="tm-cond"><option value=""></option>${sel(CONDITIONS, t.market_condition||"")}</select></div>
         <div class="field"><label>Session</label><select id="tm-session"><option value=""></option>${sel(SESSIONS, t.session||"")}</select></div>
-        <div class="field"><label>Emotion</label><select id="tm-emotion"><option value=""></option>${sel(EMOTIONS, t.emotion||"")}</select></div>
+        <div class="field"><label>Emotion</label><select id="tm-emotion"><option value=""></option>${EMOTIONS.map((o)=>`<option value="${o}" ${o===(t.emotion||"")?"selected":""}>${esc(titleCase(o))}</option>`).join("")}</select></div>
       </div>
 
       <div class="section-label">Journal</div>
@@ -474,27 +483,28 @@
       rEl.querySelectorAll(".star").forEach((s)=>s.addEventListener("click",()=>{rating=+s.dataset.r;drawStars();})); };
     drawStars();
 
-    // auto-fill contract multiplier from the MCX table for commodity/future
-    // symbols (always editable afterwards).
+    // auto-fill contract multiplier from the MCX table for commodity symbols
+    // (always editable afterwards).
     const applyMult = () => {
       const sym = (el("tm-symbol").value || "").trim().toUpperCase();
       const inst = el("tm-instrument").value;
       const hint = el("tm-mult-hint");
-      if ((inst === "commodity" || inst === "future") && MCX_MULT[sym] != null) {
+      if (inst === "commodity" && MCX_MULT[sym] != null) {
         el("tm-mult").value = MCX_MULT[sym];
         hint.textContent = `· MCX ${sym} = ${MCX_MULT[sym]}`;
       } else {
         hint.textContent = "";
       }
     };
-    // Symbol suggestions: only for commodities, and only after the user has
-    // typed at least one character (prefix match, capped at 8 results).
+    // Symbol suggestions: MCX list for commodities, NSE equity list for
+    // equity / equity F&O — only after the user types (prefix match, max 8).
     const refreshSuggestions = () => {
       const dl = el("dl-mcx");
       const inst = el("tm-instrument").value;
       const v = (el("tm-symbol").value || "").trim().toUpperCase();
-      if (inst === "commodity" && v.length >= 1) {
-        const matches = Object.keys(MCX_MULT).filter((s) => s.startsWith(v)).slice(0, 8);
+      const source = symbolSource(inst);
+      if (source && v.length >= 1) {
+        const matches = source.filter((s) => s.startsWith(v)).slice(0, 8);
         dl.innerHTML = matches.map((s) => `<option>${s}</option>`).join("");
       } else {
         dl.innerHTML = "";
@@ -628,7 +638,7 @@
       </div>
       <div class="grid two-col">
         ${breakdownCard("By Trading Session", a.by_session)}
-        ${breakdownCard("By Instrument", a.by_instrument)}
+        ${breakdownCard("By Instrument", a.by_instrument.map((g) => ({ ...g, group: instLabel(g.group) })))}
       </div>`;
 
     if (a.weekday && a.weekday.length) {
@@ -728,103 +738,11 @@
     return `<div class="insight ${i.severity}">
       <div class="i-head">
         <h4>${esc(i.pattern)}</h4>
-        <div style="display:flex;gap:8px;align-items:center">${impact}<span class="pill ${sevPill}">${esc(i.severity)}</span></div>
+        <div style="display:flex;gap:8px;align-items:center">${impact}<span class="pill ${sevPill}">${esc(titleCase(i.severity))}</span></div>
       </div>
       <div class="evidence">${esc(i.evidence)}</div>
       <div class="rec"><b>Coach:</b> ${esc(i.recommendation)}</div>
     </div>`;
-  }
-
-  // ======================================================================
-  // Goals & Habits
-  // ======================================================================
-  async function viewGoals() {
-    const [{ goals }, { habits }] = await Promise.all([API.goals(), API.habits()]);
-    const c = el("content");
-    c.innerHTML = `
-      <div class="grid two-col">
-        <div>
-          <div class="card-head" style="margin:0 2px 12px"><h3 style="font-size:16px">Goals</h3>
-            <button class="btn btn-primary btn-sm" id="add-goal">${icon("plus")} New goal</button></div>
-          <div class="grid" style="gap:12px" id="goals-list">${goals.map(goalCard).join("") || emptyInline("No goals yet — set a target to aim for.")}</div>
-        </div>
-        <div>
-          <div class="card-head" style="margin:0 2px 12px"><h3 style="font-size:16px">Habit Tracker</h3>
-            <button class="btn btn-primary btn-sm" id="add-habit">${icon("plus")} New habit</button></div>
-          <div class="card"><div id="habits-list">${habits.map(habitRow).join("") || emptyInline("Track daily discipline habits here.")}</div></div>
-        </div>
-      </div>`;
-
-    el("add-goal").addEventListener("click", goalModal);
-    el("add-habit").addEventListener("click", async () => {
-      const name = prompt("Name your habit (e.g. “Followed my trading plan”)");
-      if (name) { await API.createHabit({ name }); toast("Habit added"); router(); }
-    });
-    c.querySelectorAll("[data-delgoal]").forEach((b) => b.addEventListener("click", () =>
-      confirm("Delete this goal?", async () => { await API.deleteGoal(b.dataset.delgoal); router(); })));
-    c.querySelectorAll("[data-delhabit]").forEach((b) => b.addEventListener("click", () =>
-      confirm("Delete this habit?", async () => { await API.deleteHabit(b.dataset.delhabit); router(); })));
-    c.querySelectorAll(".wd").forEach((w) => w.addEventListener("click", async () => {
-      await API.toggleHabit(w.dataset.hid, w.dataset.date); router();
-    }));
-  }
-
-  function goalCard(g) {
-    const pctDone = g.target ? Math.max(0, Math.min(100, (g.current / g.target) * 100)) : 0;
-    const unit = g.metric === "pnl" ? money(g.current) : g.metric === "win_rate" ? pct(g.current) : num(g.current);
-    const tgt = g.metric === "pnl" ? money(g.target) : g.metric === "win_rate" ? pct(g.target) : num(g.target);
-    const done = pctDone >= 100;
-    return `<div class="card goal">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div><b>${esc(g.title)}</b> ${done?'<span class="pill pill-green">reached ✓</span>':""}
-          <div class="faint" style="font-size:12px;margin-top:2px">Metric: ${esc(g.metric)}</div></div>
-        <button class="btn btn-ghost btn-sm" data-delgoal="${g.id}">${icon("trash")}</button>
-      </div>
-      <div class="progress"><span style="width:${pctDone}%"></span></div>
-      <div style="display:flex;justify-content:space-between;font-size:12.5px" class="muted">
-        <span class="mono">${unit}</span><span class="faint">target ${tgt}</span></div>
-    </div>`;
-  }
-
-  function habitRow(hb) {
-    const days = [];
-    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push(d); }
-    const dots = days.map((d) => {
-      const key = d.toISOString().slice(0, 10);
-      const on = hb.log && hb.log[key];
-      const lbl = d.toLocaleDateString(undefined, { weekday: "narrow" });
-      return `<div class="wd ${on?"on":""}" data-hid="${hb.id}" data-date="${key}" title="${key}">${lbl}</div>`;
-    }).join("");
-    return `<div class="habit-row">
-      <div><b style="font-size:14px">${esc(hb.name)}</b>
-        <div class="streak-badge">🔥 ${hb.streak||0} day streak</div></div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div class="week-dots">${dots}</div>
-        <button class="btn btn-ghost btn-sm" data-delhabit="${hb.id}">${icon("trash")}</button>
-      </div>
-    </div>`;
-  }
-
-  function goalModal() {
-    const body = `
-      <div class="field"><label>Goal title</label><input id="g-title" placeholder="Reach a 55% win rate"/></div>
-      <div class="field"><label>Track against metric</label>
-        <select id="g-metric">
-          <option value="win_rate">Win rate (%)</option>
-          <option value="pnl">Net P&L (${UI.curSym()})</option>
-          <option value="profit_factor">Profit factor</option>
-          <option value="expectancy">Expectancy (${UI.curSym()})</option>
-          <option value="custom">Custom (manual)</option>
-        </select></div>
-      <div class="field"><label>Target value</label><input id="g-target" type="number" step="any" placeholder="55"/></div>
-      <div class="form-error" id="g-err"></div>`;
-    modal("New goal", body, `<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="g-save">Create goal</button>`);
-    el("g-save").addEventListener("click", async () => {
-      const title = el("g-title").value.trim();
-      if (!title) { el("g-err").textContent = "Give your goal a title."; return; }
-      await API.createGoal({ title, metric: el("g-metric").value, target: el("g-target").value || 0 });
-      close(); toast("Goal created"); router();
-    });
   }
 
   // ======================================================================
