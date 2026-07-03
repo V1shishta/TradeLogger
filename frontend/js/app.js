@@ -248,7 +248,8 @@
     el("logout").addEventListener("click", () => { API.logout(); location.hash = ""; user = null; renderAuth(); });
     el("btn-add").addEventListener("click", () => tradeModal());
     el("btn-import").addEventListener("click", importModal);
-    el("menu-toggle").addEventListener("click", () => el("sidebar").classList.toggle("open"));
+    el("menu-toggle").addEventListener("click", () =>
+      el("sidebar").classList.contains("open") ? closeSidebar() : openSidebar());
 
     window.addEventListener("hashchange", router);
     if (!location.hash) location.hash = "#/dashboard";
@@ -270,11 +271,29 @@
       a.classList.toggle("active", a.dataset.route === route));
     el("page-title").textContent = def.title;
     el("page-sub").textContent = def.sub;
-    el("sidebar").classList.remove("open");
+    closeSidebar();
     el("content").innerHTML = '<div class="spinner"></div>';
     def.fn().catch((e) => {
       el("content").innerHTML = `<div class="empty"><div class="big">⚠️</div><h3>Couldn't load this view</h3><p>${esc(e.error||e.message||"")}</p></div>`;
     });
+  }
+
+  // Mobile sidebar drawer: a scrim lets the user tap outside to close. Only
+  // reachable via the hamburger, which is hidden on desktop — so desktop is
+  // unaffected.
+  function openSidebar() {
+    el("sidebar").classList.add("open");
+    if (!document.querySelector(".scrim")) {
+      const s = h('<div class="scrim"></div>');
+      s.addEventListener("click", closeSidebar);
+      document.body.appendChild(s);
+    }
+  }
+  function closeSidebar() {
+    const sb = el("sidebar");
+    if (sb) sb.classList.remove("open");
+    const s = document.querySelector(".scrim");
+    if (s) s.remove();
   }
 
   // ======================================================================

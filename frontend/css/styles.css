@@ -345,4 +345,60 @@ tbody tr:hover .row-actions { opacity: 1; }
   .field-row, .field-row-3 { grid-template-columns: 1fr; }
   .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 55; }
 }
+
+/* Phones only (≤560px) — desktop/tablet UI above this width is untouched. */
+@media (max-width: 560px) {
+  .content { padding: 16px 12px 44px; }
+  /* Let grid tracks shrink below content min-width (prevents horizontal
+     "blowout" from wide tables / calendar cells). */
+  .two-col, .three-col, .lists-2 { grid-template-columns: minmax(0, 1fr); }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .table-wrap { min-width: 0; }
+  /* Topbar: single tidy row. The page subtitle wraps in the narrow title area
+     and blows the topbar up to ~120px, so hide it and compact the controls. */
+  .topbar { padding: 11px 14px; gap: 10px; }
+  .topbar h1 { font-size: 18px; }
+  .page-sub { display: none; }
+  .topbar-actions { gap: 8px; }
+  .topbar-actions .btn { padding: 7px 10px; font-size: 12px; }
+  .topbar-actions .btn svg { width: 15px; height: 15px; }
+
+  /* KPI cards: value was overflowing the card at desktop font size. */
+  .kpi { padding: 13px 13px; }
+  .kpi .k-value { font-size: 19px; }
+  .kpi .k-label { font-size: 11.5px; }
+  .kpi .k-foot { font-size: 11px; }
+  .kpi .k-icon { width: 26px; height: 26px; top: 12px; right: 12px; }
+
+  /* Cards + tables: tighter so horizontal scroll is minimal. */
+  .card { padding: 16px 14px; }
+  thead th { padding: 10px 10px; font-size: 10px; }
+  tbody td { padding: 10px 10px; font-size: 12.5px; }
+
+  /* Calendar: compact cells; drop the trade-count line, ellipsize P&L. */
+  .cal-grid { gap: 5px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .cal-cell { padding: 4px; border-radius: 6px; min-width: 0; overflow: hidden; }
+  .cal-cell .d { font-size: 10px; }
+  .cal-cell .p { font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-cell .n { display: none; }
+  .cal-head { font-size: 10px; }
+
+  /* AI Coach hero stacks; smaller grade badge. */
+  .coach-hero { grid-template-columns: 1fr; gap: 14px; }
+  .grade-badge { width: 64px; height: 64px; font-size: 30px; border-radius: 16px; }
+
+  /* Analytics bar rows: narrower fixed columns. */
+  .bar-row { grid-template-columns: 88px 1fr 74px; gap: 8px; font-size: 12px; }
+
+  /* Modals use more of the screen. */
+  .modal-overlay { padding: 10px; }
+  .modal-head { padding: 16px 18px; }
+  .modal-body { padding: 18px; }
+  .modal-foot { padding: 14px 18px; }
+  .section-label { margin: 14px 0 8px; }
+
+  /* Toasts span the width instead of a fixed 240px min. */
+  .toast-wrap { left: 12px; right: 12px; bottom: 12px; }
+  .toast { min-width: 0; }
+}
 .menu-toggle { display: none; }
