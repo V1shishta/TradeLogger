@@ -209,6 +209,8 @@ tbody tr:last-child td { border-bottom: none; }
 .t-sym { font-weight: 700; }
 .row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
 tbody tr:hover .row-actions { opacity: 1; }
+/* Touch devices have no hover — always show edit/delete there. */
+@media (hover: none) { .row-actions { opacity: 1; } }
 
 /* ---------- Charts ---------- */
 .chart-box { position: relative; height: 300px; }
@@ -374,6 +376,7 @@ tbody tr:hover .row-actions { opacity: 1; }
   .card { padding: 16px 14px; }
   thead th { padding: 10px 10px; font-size: 10px; }
   tbody td { padding: 10px 10px; font-size: 12.5px; }
+  .row-actions { opacity: 1; }   /* edit/delete always visible on phones */
 
   /* Calendar: compact cells; drop the trade-count line, ellipsize P&L. */
   .cal-grid { gap: 5px; grid-template-columns: repeat(7, minmax(0, 1fr)); }

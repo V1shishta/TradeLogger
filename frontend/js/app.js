@@ -452,9 +452,9 @@
     const body = `
       <div class="section-label">Position</div>
       <div class="field-row-3">
+        <div class="field"><label>Instrument</label><select id="tm-instrument">${INSTRUMENTS.map((o)=>`<option value="${o}" ${o===(t.instrument||"equity")?"selected":""}>${esc(instLabel(o))}</option>`).join("")}</select></div>
         <div class="field"><label>Symbol *</label><input id="tm-symbol" value="${esc(t.symbol||"")}" placeholder="AAPL / GOLD" list="dl-mcx" autocomplete="off"/>
           <datalist id="dl-mcx"></datalist></div>
-        <div class="field"><label>Instrument</label><select id="tm-instrument">${INSTRUMENTS.map((o)=>`<option value="${o}" ${o===(t.instrument||"equity")?"selected":""}>${esc(instLabel(o))}</option>`).join("")}</select></div>
         <div class="field"><label>Direction</label><select id="tm-direction"><option value="long" ${t.direction!=="short"?"selected":""}>Long</option><option value="short" ${t.direction==="short"?"selected":""}>Short</option></select></div>
       </div>
       <div class="field-row-3">
