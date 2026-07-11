@@ -552,7 +552,7 @@
         if (editing) { await API.updateTrade(t.id, payload); toast("Trade updated"); }
         else { await API.createTrade(payload); toast("Trade logged ✓"); }
         close(); router();
-      } catch (e) { el("tm-err").textContent = e.error || "Could not save."; }
+      } catch (e) { el("tm-err").textContent = e.error || "Couldn't save — please try again in a moment."; }
     });
   }
 

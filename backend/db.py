@@ -15,6 +15,7 @@ The metrics, coach, CSV and API layers never touch engine-specific SQL.
 import os
 import sqlite3
 import threading
+import time
 
 # --- backend selection -----------------------------------------------------
 # Vercel Postgres / Neon expose the connection string under several different
@@ -86,10 +87,24 @@ class Conn:
 
 def get_conn():
     if IS_PG:
-        # prepare_threshold=None disables server-side prepared statements, which
-        # keeps us compatible with transaction-pooled (PgBouncer) endpoints.
-        raw = psycopg.connect(DATABASE_URL, row_factory=dict_row, prepare_threshold=None)
-        return Conn(raw, True)
+        # On the free tier the Neon compute auto-suspends when idle; the first
+        # connection after a wake can be briefly refused/reset. Retry once so a
+        # cold start doesn't surface as a failed request.
+        # prepare_threshold=None keeps us compatible with pooled (PgBouncer)
+        # endpoints; connect_timeout bounds the wait on a waking compute.
+        last = None
+        for attempt in range(2):
+            try:
+                raw = psycopg.connect(
+                    DATABASE_URL, row_factory=dict_row,
+                    prepare_threshold=None, connect_timeout=10,
+                )
+                return Conn(raw, True)
+            except psycopg.OperationalError as e:
+                last = e
+                if attempt == 0:
+                    time.sleep(1.0)
+        raise last
     raw = sqlite3.connect(DB_PATH)
     raw.row_factory = sqlite3.Row
     raw.execute("PRAGMA foreign_keys = ON")
@@ -205,6 +220,12 @@ def ensure_ready():
     initialized. On serverless cold starts it builds the schema on first hit."""
     global _ready
     if _ready:
+        return
+    # Once the schema exists, set TJP_SKIP_INIT=1 so cold serverless starts skip
+    # the schema/seed round-trips entirely — the request then opens just one DB
+    # connection, which matters when the Neon compute is waking from suspend.
+    if os.environ.get("TJP_SKIP_INIT") == "1":
+        _ready = True
         return
     init_db()
     if os.environ.get("AUTO_SEED", "1") != "0":

@@ -13,11 +13,28 @@ const API = (() => {
   async function request(method, path, body) {
     const headers = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = "Bearer " + token;
-    const res = await fetch("/api" + path, {
-      method,
-      headers,
-      body: body != null ? JSON.stringify(body) : undefined,
-    });
+    // Bound the request so a slow cold start (waking DB) fails with a clear,
+    // actionable message instead of hanging or surfacing a raw network error.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
+    let res;
+    try {
+      res = await fetch("/api" + path, {
+        method,
+        headers,
+        body: body != null ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (e) {
+      throw {
+        status: 0,
+        error: e && e.name === "AbortError"
+          ? "The server took too long to respond (it may have been idle). Please try again."
+          : "Network error — check your connection and try again.",
+      };
+    } finally {
+      clearTimeout(timer);
+    }
     let data = {};
     try { data = await res.json(); } catch (e) { /* empty */ }
     if (!res.ok) {
